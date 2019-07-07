@@ -612,7 +612,7 @@ class AEUserSession(AESessionBase):
         with open(filename, 'wb') as fp:
             fp.write(response)
 
-    def project_image(self, ident, use_anaconda_cloud=False, debug=False, format=None):
+    def project_image(self, ident, use_anaconda_cloud=False, dockerfile_path=None, debug=False, format=None):
         '''Build docker image'''
         id, rev, _, _ = self._revision(ident)
         info = self.project_info(ident, format='response')
@@ -620,7 +620,15 @@ class AEUserSession(AESessionBase):
         owner = info['owner']
         tag = f'{owner}/{name}:{rev}'
 
-        dockerfile = get_dockerfile()
+        if dockerfile_path:
+            if not os.path.exists(dockerfile_path):
+                print(f'The requested Dockerfile was not found.\n{dockerfile_path}.')
+                return
+            else:
+                with open(dockerfile_path) as f:
+                    dockerfile = f.read()
+        else:
+            dockerfile = get_dockerfile()
 
         with TemporaryDirectory() as tempdir:
             with open(os.path.join(tempdir, 'Dockerfile'), 'w') as f:
@@ -629,8 +637,7 @@ class AEUserSession(AESessionBase):
             
             ae5_hostname = self.hostname if not use_anaconda_cloud else None
             print('Starting image build. This may take several minutes.')
-            image = build_image(tempdir, tag=tag, ae5_hostname=ae5_hostname, debug=debug)
-            return image
+            build_image(tempdir, tag=tag, ae5_hostname=ae5_hostname, debug=debug)
 
     def project_delete(self, ident, format=None):
         id, _ = self._id('projects', ident)
